@@ -18,13 +18,15 @@ Main conecpt of this project,basically there are two types of users
 
 Routes:-(you must provide the key and value while requesting server)
 
-1.user login/register and fetch user
+1.user login/register/logout and fetch user
 
 http://localhost:3000/login (request type: POST, Body: x-www-form-urlencoded, key: email,password)
 
 http://localhost:3000/register (request type: POST, Body: x-www-form-urlencoded, key: email,password)
 
 http://localhost:3000/user (request type: GET), to check authenticated user credentials
+
+http://localhost:3000/logout (request type: GET), to logout user
 
 2.Creating store and performing CURD operation on store and books(CURD operations can be performed only on current user store and if user is authenticated) 
 
