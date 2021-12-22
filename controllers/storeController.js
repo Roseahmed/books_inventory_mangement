@@ -305,8 +305,14 @@ const deleteBook = async (req, res) => {
 }
 
 const fetchStores = async (req, res) => {
+    console.log('\nFetch all stores request');
     try {
         const findStore = await storeModel.find({});
+        if (findStore.length === 0) {
+            const message = "404 not found";
+            console.log(message);
+            return res.status.json({ message });
+        }
         console.log("\nFetch all stores successfull");
         res.status(200).json(findStore);
 
@@ -317,7 +323,7 @@ const fetchStores = async (req, res) => {
 }
 
 const fetchBooks = (req, res) => {
-    console.log("\nFetch all books");
+    console.log("\nFetch all books request");
 
     // aggreagete method to find all the books
     storeModel.aggregate([
