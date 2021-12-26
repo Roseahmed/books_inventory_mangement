@@ -1,4 +1,4 @@
-# books_inventory_mangement
+# books_store_mangement
 
 Technologies used node js,express js, express-session, passport local strategy for authenticating user and mongodb-Atlas,mongoose database and many more
 
