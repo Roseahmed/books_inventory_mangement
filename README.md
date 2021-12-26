@@ -24,7 +24,7 @@ http://localhost:3000/login (request type: POST, Body: x-www-form-urlencoded, ke
 
 http://localhost:3000/register (request type: POST, Body: x-www-form-urlencoded, key: email,password)
 
-http://localhost:3000/user (request type: GET), to check authenticated user credentials
+http://localhost:3000/me (request type: GET), to check authenticated user credentials
 
 http://localhost:3000/logout (request type: GET), to logout user
 
