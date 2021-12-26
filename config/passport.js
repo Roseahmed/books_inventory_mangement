@@ -12,12 +12,12 @@ module.exports = (passport) => {
         function (username, password, done) {
             userModel.findOne({ email: username }, function (err, user) {
                 if (err) {
-                    console.log("Authentication function failed:", err);
+                    // console.log("Authentication error:", err);
                     return done(err);
                 }
                 if (!user) {
                     const message = `User name not found !!!`;
-                    console.log(message);
+                    // console.log(message);
                     return done(null, false, { message: message });
                 }
                 // comparing the hash password by bcrypt
@@ -25,7 +25,7 @@ module.exports = (passport) => {
 
                 if (!comparePassword) {
                     const message = `Incorrect password !!!`;
-                    console.log(message);
+                    // console.log(message);
                     return done(null, false, { message: message });
                 }
                 console.log("Authentication successfull of user: ", user.email);

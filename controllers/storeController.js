@@ -4,36 +4,40 @@ const { findOneAndUpdate } = require("../models/storeModel");
 const storeModel = require("../models/storeModel");
 const userModel = require("../models/userModel");
 
-// note: user can perform CURD operation only in current user store.
+// Authentication error
+const error = new Error("Unauthorized access");
+error.status = 401;
 
-const createStore = async (req, res) => {
+
+// note: user can perform CURD operation to store/book_inventory that belongs to user.
+
+const createStore = async (req, res, next) => {
     const { storeName, ownerName } = req.body;
-    console.log("\nCreate store request details: ", storeName, ownerName);
+    console.log("\nCreate store request with details: ", storeName, ownerName);
 
-    // check user is authenticated or not this function is provided by passport
+    // if user is authenticated, this function is provided by passport
     if (req.isAuthenticated()) {
         try {
             // req.user property is same as current user id and it is provided by passport
             const currentUser = req.user
 
-            // check req body data is defined or not
+            // if req body data is undefined
             if (!storeName || !ownerName) {
-                const message = `storeName and ownerName must be defined to create store`;
-                console.log(message);
-                return res.status(406).json({ message });
+                const err = new Error(`storeName or ownerName field missing`);
+                err.status = 422;
+                return next(err);
             }
 
-            // check if user has exsisting store
+            // if user has exsisting store
             const findStore = await storeModel.findOne({ _id: currentUser._id }, '_id')
             if (findStore) {
-                const message = "Store already available";
-                console.log(message);
-                return res.status(409).json({ message });
+                const err = new Error("Store already exist");
+                err.status = 409;
+                return next(err);
             }
 
-            // create new store
+            // create new store, store and user _id is kept same to identify that store belongs to that particular user
             const newStore = await new storeModel({
-                // store _id and user _id is kept same to identify that store belongs to particular user 
                 _id: currentUser._id,
                 storeName,
                 ownerName
@@ -43,19 +47,15 @@ const createStore = async (req, res) => {
             const saveStore = await newStore.save();
             const message = `Store created successfull`;
             console.log(message);
-            res.status(200).json({ saveStore, message });
+            return res.status(200).json({ saveStore, message });
         } catch (err) {
-            console.log("Create store error: ", err.message);
-            res.status(500).json({ message: err.message });
+            return next(err);
         }
-    } else {
-        const message = "Unauthorized access";
-        console.log(message);
-        return res.status(401).json({ message });
     }
+    next(error);
 }
 
-const updateStore = async (req, res) => {
+const updateStore = async (req, res, next) => {
     const { storeName, ownerName } = req.body;
     console.log("\nUpdate store request with details:", storeName, ownerName);
 
@@ -64,20 +64,20 @@ const updateStore = async (req, res) => {
             const currentUser = req.user;
 
             if (!storeName || !ownerName) {
-                const message = "storeName and ownerName must be defined";
-                console.log(message);
-                return res.status(409).json({ message });
+                const err = new Error("storeName or ownerName field missing");
+                err.status = 422;
+                return next(err)
             }
 
-            // check if user has created store or not
+            // if user doesn't have existing store
             const findStore = await storeModel.findOne({ _id: currentUser._id }, '_id')
             if (!findStore) {
-                const message = "You have no store, create store first";
-                console.log(message);
-                return res.status(406).json({ message });
+                const err = new Error("Store doesn't exist");
+                err.status = 422;
+                return next(err);
             }
 
-            // update store details
+            // update store 
             const updateStoreStatus = await storeModel.updateOne({
                 _id: currentUser._id
             }, {
@@ -86,30 +86,17 @@ const updateStore = async (req, res) => {
                     ownerName: ownerName
                 }
             });
-            if (updateStoreStatus.modifiedCount === 1) {
-                const message = "user store update successfull";
-                console.log(message);
-                return res.status(200).json({ updateStoreStatus, message });
-            }
-            const message = "Something went wrong or trying to update with existing store details";
+            const message = "Store update successfull";
             console.log(message);
-            res.status(406).json({ updateStoreStatus, message });
-
-
+            return res.status(200).json({ updateStoreStatus, message });
         } catch (err) {
-            console.log("Update store of user error:", err.message);
-            res.status(500).json({ message: err.message });
+            return next(err);
         }
-
-    } else {
-        const message = "Unauthorized access";
-        console.log(message);
-        res.status(401).json({ message });
     }
-
+    next(error);
 }
 
-const addBook = async (req, res) => {
+const addBook = async (req, res, next) => {
     const { bookName, totalStock } = req.body;
     console.log("\nAdd book request with details:", bookName, totalStock);
 
@@ -117,21 +104,21 @@ const addBook = async (req, res) => {
         try {
             const currentUser = req.user;
 
-            // check req body data is defined or not
+            // if req body data is undefined
             if (!bookName || !totalStock) {
-                const message = "bookName and totalStock must be defined to add book";
-                console.log(message);
-                return res.status(406).json({ message });
+                const err = new Error("bookName or totalStock field missing");
+                err.status = 422;
+                return next(err);
             }
 
-            // check if user has store if not then don't allow to store book
+            // if user doesn't have existing store
             const findStore = await storeModel.findOne({
                 _id: currentUser._id
             }, '_id');
             if (!findStore) {
-                const message = "Create your store first to add book";
-                console.log(message);
-                return res.status(406).json({ message });
+                const err = new Error("Store doesn't exist");
+                err.status = 422;
+                return next(err);
             }
 
             // set the stock status
@@ -148,7 +135,7 @@ const addBook = async (req, res) => {
                 stockStatus
             }
 
-            // mongoose method to add book to current user store
+            // add book to current user store
             const saveBook = await storeModel.findOneAndUpdate({
                 _id: currentUser._id
             }, {
@@ -158,19 +145,15 @@ const addBook = async (req, res) => {
             }, { new: true });
             const message = "Book added successfull";
             console.log(message);
-            res.status(200).json({ saveBook, message });
+            return res.status(200).json({ saveBook, message });
         } catch (err) {
-            console.log("Add book to user store error:", err.message);
-            res.status(500).json({ message: err.message });
+            return next(err);
         }
-    } else {
-        const message = "Unauthorized access";
-        console.log(message);
-        return res.status(401).json({ message });
     }
+    next(error);
 }
 
-const updateBook = async (req, res) => {
+const updateBook = async (req, res, next) => {
 
     const { bookId, bookName, totalStock } = req.body;
     console.log("\nUpdate book request with details:", bookId, bookName, totalStock);
@@ -179,27 +162,27 @@ const updateBook = async (req, res) => {
         try {
             const currentUser = req.user;
 
-            // if req body is not defined
+            // if req body is undefined
             if (!bookId || !bookName || !totalStock) {
-                const message = "bookId bookName totalStock must be defined to update the book";
-                console.log(message);
-                return res.status(406).json({ message });
+                const err = new Error("bookId or bookName or totalStock field missing");
+                err.status = 422;
+                return next(err);
             }
 
-            // check bookId is valid or not
+            // if bookId is invalid
             const isBookIdValid = mongoose.Types.ObjectId.isValid(bookId);
             if (!isBookIdValid) {
-                const message = "Invalid book id";
-                console.log(message);
-                return res.status(406).json({ message });
+                const err = new Error("Invalid book id");
+                err.status = 400;
+                return next(err);
             }
 
-            // check if user has created store or not
+            // if user doesn't have existing store
             const findStore = await storeModel.findOne({ _id: currentUser._id }, '_id')
             if (!findStore) {
-                const message = "You have no store,create store first";
-                console.log(message);
-                return res.status(406).json({ message });
+                const err = new Error("Store doesn't exist");
+                err.status = 422;
+                return next(err);
             }
 
             // set stock status
@@ -228,23 +211,18 @@ const updateBook = async (req, res) => {
                 console.log(message);
                 return res.status(200).json({ updateBook, message });
             }
-            const message = "Something went wrong,check book id or trying to update the book with existing details";
-            console.log(message);
-            return res.status(406).json({ updateBook, message });
-
+            const err = new Error("Book doesn't exist in store, or trying to update with existing book details");
+            err.status = 422;
+            return next(err);
         } catch (err) {
-            console.log("Update book in user store error:", err.message);
-            res.status(500).json({ message: err.message });
+            return next(err);
         }
-
     } else {
-        const message = "Unauthorized access";
-        console.log(message);
-        res.status(401).json({ message });
+        next(error);
     }
 }
 
-const deleteBook = async (req, res) => {
+const deleteBook = async (req, res, next) => {
     const { bookId } = req.body;
     console.log("\nDelete book by id request with details:", bookId);
 
@@ -252,27 +230,27 @@ const deleteBook = async (req, res) => {
         try {
             const currentUser = req.user;
 
-            // if req body is not defined
+            // if req body is undefined
             if (!bookId) {
-                const message = "bookId is not defined";
-                console.log(message);
-                return res.status(406).json({ message });
+                const err = new Error("bookId field missing");
+                err.status = 422;
+                return next(err);
             }
 
-            // check book id is valid or not
+            // if book id is invalid
             const isBookIdValid = mongoose.Types.ObjectId.isValid(bookId);
             if (!isBookIdValid) {
-                const message = "Invalid book id";
-                console.log(message);
-                return res.status(406).json({ message });
+                const err = new Error("Invalid book id");
+                err.status = 400;
+                return next(err);
             }
 
-            // check if user has created store or not
+            // if user doesn't have existing store
             const findStore = await storeModel.findOne({ _id: currentUser._id }, '_id')
             if (!findStore) {
-                const message = "You have no store,create store first";
-                console.log(message);
-                return res.status(406).json({ message });
+                const err = new Error("Store doesn't exist");
+                err.status = 422;
+                return next(err);
             }
 
             // delete book 
@@ -290,39 +268,33 @@ const deleteBook = async (req, res) => {
                 console.log(message);
                 return res.status(200).json({ deleteBookStatus, message });
             }
-            const message = "Something went wrong,check book id";
-            console.log(message);
-            res.status(406).json({ deleteBookStatus, message });
+            const err = new Error("Book doesn't exist in store, check Book Id");
+            err.status = 404;
+            return next(err);
         } catch (err) {
-            console.log("Delete book error:", err.message);
-            res.status(500).json({ message: err.message });
+            return next(err);
         }
-    } else {
-        const message = "Unauthorized access";
-        console.log(message);
-        return res.status(401).json({ message });
     }
+    next(error);
 }
 
-const fetchStores = async (req, res) => {
+const fetchStores = async (req, res, next) => {
     console.log('\nFetch all stores request');
     try {
         const findStore = await storeModel.find({});
         if (findStore.length === 0) {
-            const message = "404 not found";
-            console.log(message);
-            return res.status.json({ message });
+            const err = new Error("Stores Not Found");
+            err.status = 404;
+            return next(err);
         }
         console.log("\nFetch all stores successfull");
         res.status(200).json(findStore);
-
     } catch (err) {
-        console.log("\nFetch store error:", err.message);
-        res.status(500).json({ message: err.message });
+        next(err);
     }
 }
 
-const fetchBooks = (req, res) => {
+const fetchBooks = (req, res, next) => {
     console.log("\nFetch all books request");
 
     // aggreagete method to find all the books
@@ -343,38 +315,37 @@ const fetchBooks = (req, res) => {
     ]).exec((err, docs) => {
         if (!err) {
             if (docs.length === 0) {
-                const message = "404 not found";
-                console.log(message);
-                return res.status(404).json({ message });
+                const err = new Book("Books Not Found");
+                err.status = 404;
+                return next(err);
             }
             console.log("Fetch books successfull");
             return res.status(200).json(docs);
         }
-        console.log("Fetch book error:", err.message);
-        res.status(200).json({ message: err.message });
+        next(err);
     });
 }
 
-const fetchBookById = (req, res) => {
+const fetchBookById = (req, res, next) => {
     const bookId = req.params.bookById;
     console.log("\nFetch book by Id:", bookId);
 
-    // check if book id is defined or not
+    // if book id is undefined
     if (!bookId) {
-        const message = "Book id must be defined in params";
-        console.log(`\n${message}`);
-        return res.status(409).json({ message });
+        const err = new Error("Book id params missing");
+        err.status = 422;
+        return next(err);
     }
 
-    // check book id is valid or not
+    // if book id is invalid
     const isBookIdValid = mongoose.Types.ObjectId.isValid(bookId);
     if (!isBookIdValid) {
-        const message = "Invalid book id";
-        console.log(message);
-        return res.status(406).json({ message });
+        const err = new Error("Invalid Book Id");
+        err.status = 400;
+        return next(err);
     }
 
-    // fetch books by from all stores 
+    // fetch books by id from all stores 
     storeModel.aggregate([
         {
             "$match": {
@@ -398,15 +369,14 @@ const fetchBookById = (req, res) => {
     ]).exec((err, docs) => {
         if (!err) {
             if (docs.length === 0) {
-                const message = "404 not found";
-                console.log(message);
-                return res.status(404).json({ message });
+                const err = new Error("Book Not Found");
+                err.status = 404;
+                return next(err);
             }
             console.log("Fetch book by id successfull");
             return res.status(200).json(docs);
         }
-        console.log("Fetch book by id error:", err.message);
-        return res.status(500).json({ message: err.message });
+        next(err);
     });
 }
 

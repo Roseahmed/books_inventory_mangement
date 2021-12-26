@@ -16,8 +16,8 @@ app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 
 // connect mongodb
-// const mongoUrl = "mongodb://127.0.0.1:27017/bookStoreDB"; // local url
-const mongoUrl = process.env.MONGODB_ATLAS;
+const mongoUrl = "mongodb://127.0.0.1:27017/bookStoreDb"; // local url
+// const mongoUrl = process.env.MONGODB_ATLAS;
 mongoose.connect(mongoUrl, {
     useNewUrlparser: true,
     useUnifiedTopology: true
@@ -55,15 +55,34 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 
+
 ////////////////////////////////////Routes///////////////////////////////////////////
 app.use(require("./routes/userRoutes"));
 app.use(require("./routes/storeRoutes"));
 
-app.get("/", (req, res) => {
+app.get("/", (req, res, next) => {
     const message = "Welcome to Book Store";
     console.log(`\n${message}`);
     res.status(200).json({ message });
-})
+});
+
+// handle invalid routes request
+app.use((req, res, next) => {
+    const error = new Error("404 Not Found");
+    error.status = 404;
+    next(error);
+});
+
+// handle error 
+app.use((err, req, res, next) => {
+    console.log("Error:", err.message);
+    res.status(err.status || 500).json({
+        error: {
+            status: err.status || 500,
+            message: err.message
+        }
+    });
+});
 
 app.listen(port, err => {
     if (!err) console.log(`Server started at port:${port}`);
